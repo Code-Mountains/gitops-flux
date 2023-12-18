@@ -1,0 +1,93 @@
+This exercise assumes a working Kubernetes cluster, with Flux installed and
+configured according to the lab exercise in module 3.
+
+The kubectl (https://kubernetes.io/docs/tasks/tools/install-kubectl/) command
+line tool is required, as is an account on a git hosting provider, such as;
+GitHub, GitLab, Bitbucket Server, AWS CodeCommit, or Azure DevOps. In addition,
+the Kustomize utility should be installed in order to create Kustomization
+files (https://kubectl.docs.kubernetes.io/installation/kustomize/). The lab
+uses the Flux CLI, which can be installed according to the following
+instructions: https://fluxcd.io/docs/installation/#install-the-flux-cli.
+
+The instructions in this lab exercise relate to GitHub as the git host
+provider, so if you're using a different git host provider, amend the commands
+to suit.
+
+Exercise: AUTOMATING AN APPLICATION DEPLOYMENT WITH FLUX
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+1.  Make sub-directories in the 'gitops-lab-flux' repo for source and
+    kustomization custom resource definitions to live.
+
+mkdir gitops-lab-flux/{sources,kustomizations}
+
+2.  Create the source custom resource for the deployment repo that contains the
+    Kubernetes manifests for the example application. Remember to substitute
+    your GitHub account name in the command. Inspect the file that is created
+    to make sure it refelects what you expect it to contain.
+
+flux create source git nginxhello \
+  --url=ssh://github.com/<username>/gitops-lab-deploy \
+  --branch=main \
+  --secret-ref=gitops-lab-deploy-auth \
+  --namespace=default \
+  --export > gitops-lab-flux/sources/nginxhello-source.yaml
+
+cat gitops-lab-flux/sources/nginxhello-source.yaml
+
+3.  Create the kustomization custom resource for the path in the deployment
+    repo that contains the Kubernetes manifests for the example application.
+    Inspect the file that is created to make sure it refelects what you expect
+    it to contain.
+
+flux create kustomization nginxhello \
+  --source=GitRepository/nginxhello.default \
+  --path=./deploy \
+  --prune=true \
+  --target-namespace=default \
+  --namespace=default \
+  --export > gitops-lab-flux/kustomizations/nginxhello-kustomization.yaml
+
+cat gitops-lab-flux/kustomizations/nginxhello-kustomization.yaml
+
+4.  Create kustomization files for each of the sub-directories.
+
+cd gitops-lab-flux/sources
+kustomization create --autodetect
+cd ../kustomizations
+kustomization create --autodetect
+cd ..
+ls -lR sources kustomizations
+
+5.  Stage and commit changes, before pushing the changes to the remote
+    'gitops-lab-flux' repo.
+
+git add sources kustomizations
+git commit -m "Add source and kustomization resources for app deployment"
+git push
+
+6.  Check that Flux fetches and applies the resources to the default namespace
+    in the cluster.
+
+kubectl get gitrepositories
+kubectl get kustomizations
+
+7.  Check that Flux has fetched and applied the Kubernetes manifests defined in
+    the source and kustomization resources (i.e. check it has deployed the
+    app).
+
+kubectl get all
+
+8.  Note the version of the application by navigating to the exposed service
+    in a web browser. The service is exposed via an ingress, but if it can't be
+    reached, forward the port.
+
+kubectl port-forward svc/nginxhello 3000:80 &
+curl http://127.0.0.1:3000 | grep Version
+
+9.  Confirm that events have been received on the 'gitops-lab' channel on your
+    Discord server; one for storing the contents from the source git
+    respository, and one for applying the contents.
+
+Job done!
+

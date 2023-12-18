@@ -1,0 +1,55 @@
+This exercise assumes a working Kubernetes cluster. This could be a cluster
+running on a public cloud platform (e.g. EKS, GKS, AKS, DKS), or it could be a
+local cluster (e.g. Minikube, Docker Desktop , kind, k3d). The demo in the
+course uses k3d.
+
+The kubectl (https://kubernetes.io/docs/tasks/tools/install-kubectl/) command
+line tool is required, as is an account on a git hosting provider, such as;
+GitHub, GitLab, Bitbucket Server, AWS CodeCommit, or Azure DevOps. The lab uses
+the Flux CLI, which can be installed according to the following instructions:
+https://fluxcd.io/docs/installation/#install-the-flux-cli.
+
+
+Exercise: INSTALLING FLUX TO A KUBERNETES CLUSTER
++++++++++++++++++++++++++++++++++++++++++++++++++
+
+1. Explore the Flux CLI and all of its sub-commands in order to get a feel for
+   what it can do for you.
+
+flux --help
+
+2. Check that your Kubernetes environment is suitable for Flux by checking the
+   prerequisites.
+
+flux check --pre
+
+3. Create a personal access token for your git host provider, with permissions
+   that allow for creating and writing to repositories. Check the relevant Flux
+   documentation for bootstrapping to cloud provider git hosting solutions:
+   https://fluxcd.io/docs/use-cases/.
+
+4. If using a personal access token, make it available in the environment (e.g.
+   GITHUB_TOKEN, GITLAB_TOKEN, BITBUCKET_TOKEN)
+
+export GITHUB_TOKEN=ghp_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXE
+
+5. Use the Flux CLI to bootstrap Flux.
+
+flux bootstrap github \
+  --repository gitops-lab-flux \
+  --owner <user> \
+  --personal true \
+  --components-extra=image-reflector-controller,image-automation-controller
+
+6. Check that the GitOps Toolkit components have started up correctly in the
+   cluster. There should be a pod running for each of the toolkit components.
+
+kubectl -n flux-system get all
+
+7. Navigate to the repository in your git host provider, to verify that Flux
+   has created it as expected. Examine the contents of the 'flux-system'
+   folder. Notice that there are component installation manifests, as well as
+   'sync' manifests.
+
+If all has gone well, you should have a working Flux installation, comprised of
+the GitOps Toolkit controllers!

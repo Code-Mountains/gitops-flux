@@ -1,0 +1,95 @@
+This exercise assumes a working Kubernetes cluster, with Flux installed and
+configured according to the lab exercise in modules 3, 4, 5, and any previous
+exercises in module 6.
+
+The kubectl (https://kubernetes.io/docs/tasks/tools/install-kubectl/) command
+line tool is required, as is an account on a git hosting provider, such as;
+GitHub, GitLab, Bitbucket Server, AWS CodeCommit, or Azure DevOps. In addition,
+the Kustomize utility should be installed in order to create Kustomization
+files (https://kubectl.docs.kubernetes.io/installation/kustomize/).The lab
+uses the Flux CLI, which can be installed according to the following
+instructions: https://fluxcd.io/docs/installation/#install-the-flux-cli. Also
+install the Helm CLI for executing Helm commands to verify the actions of the
+helm controller (https://helm.sh/docs/intro/install/).
+
+The instructions in this lab exercise relate to GitHub as the git host
+provider, so if you're using a different git host provider, amend the commands
+to suit.
+
+Exercise: AUTOMATING A HELM CHART RELEASE
++++++++++++++++++++++++++++++++++++++++++
+
+1.  Change directory into the root of the local copy of the 'Flux' repo.  
+
+cd gitops-lab-flux
+
+2.  Edit the HelmRelease definition to add the configuration for remediation in
+    the case of a failed Helm upgrade (helmreleases/nginexhello-hr.yaml). Add
+    the following under the 'spec', but be careful with identation! Save the
+    file.
+
+spec:
+  upgrade:
+    remediation:
+      retries: 2
+
+3.  Send the changes to the remote origin on GitHub.
+
+git add -u
+git commit -m "Add remediation definition for upgrades to HelmRelease resource"
+git push
+
+4.  Familiarize yourself with the history of the Helm release as it currently
+    stands.  
+
+helm history nginxhello
+
+5.  In a new terminal window, establish a watch on the app's pods running in
+    the cluster, either by using the 'watch' capability built into the kubectl
+    command (kubectl get po --watch), or by using the 'watch' utility.
+
+watch kubectl get po
+
+6.  Login to the GitHub Container Registry, using the Helm CLI and the access
+    token you have previously prepared.
+
+echo "$(cat ~/path/to/ghcr/token)" | \
+  helm registry login -u <username> --password-stdin https://ghcr.io
+
+7.  Pull the nginxhello chart from the GitHub Container Registry, and unpack it
+    into a dierctory ready for amending.
+
+helm pull --untar=true \
+  oci://ghcr.io/<username>/charts/nginxhello --version 1.0.1
+
+8.  Edit the 'Chart.yaml' file, and change the 'appVersion' to 1.21.7, and the
+    chart 'version' to 1.0.2. Save the changes.
+
+9.  Edit the 'values.yaml' file, and change the 'tag' parameter to 1.21.7. Save
+    the changes.
+
+10. Package the Helm chart based on the amended content. A directory listing
+    should show the chart archive with 1.0.2 appearing in the filename.
+
+helm package ./nginxhello
+ls -l
+
+11. Push the new chart version to the hosted Helm repo on the GitHub Container
+    Registry.
+
+helm push ./nginxhello-1.0.2.tgz oci://ghcr.io/<username>/charts
+
+12. Establish a watch on the history of the Helm release for the nginxhello
+    app, so that you can witness the upgrade attempts and remediation. It will
+    take some time for the process to run, but satisfy yourself that the last
+    upgrade attempt is remediated with a rollback to app version 1.22.6.
+
+watch -t helm history nginxhello
+
+13. After the process has run its course, stop the watch on the history of the
+    Helm release. Check the status of the HelmRelease object, which should
+    inform that the upgrade retries have been exhausted. 
+
+14. Finally, inspect the 'gitops-lab' channel on Discord to see whether a set
+    of new messages have been sent by the notification controller. These should
+    chronicle the failed Helm upgrade and remediation actions.

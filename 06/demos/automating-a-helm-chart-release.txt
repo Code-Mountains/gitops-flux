@@ -1,0 +1,86 @@
+This exercise assumes a working Kubernetes cluster, with Flux installed and
+configured according to the lab exercise in modules 3, 4, 5, and any previous
+exercises in module 6.
+
+The kubectl (https://kubernetes.io/docs/tasks/tools/install-kubectl/) command
+line tool is required, as is an account on a git hosting provider, such as;
+GitHub, GitLab, Bitbucket Server, AWS CodeCommit, or Azure DevOps. In addition,
+the Kustomize utility should be installed in order to create Kustomization
+files (https://kubectl.docs.kubernetes.io/installation/kustomize/).The lab
+uses the Flux CLI, which can be installed according to the following
+instructions: https://fluxcd.io/docs/installation/#install-the-flux-cli. Also
+install the Helm CLI for executing Helm commands to verify the actions of the
+helm controller (https://helm.sh/docs/intro/install/).
+
+The instructions in this lab exercise relate to GitHub as the git host
+provider, so if you're using a different git host provider, amend the commands
+to suit.
+
+Exercise: AUTOMATING A HELM CHART RELEASE
++++++++++++++++++++++++++++++++++++++++++
+
+1.  Update the definition of the Discord bot alert to notify from all types of
+    Helm-related custom resources: HelmRepository, HelmRelease, and HelmChart.
+
+2.  Make a directory to store HelmRelease resources in the local copy of the
+    'Flux' repo.
+
+mkdir gitops-lab-flux/helmreleases
+
+3.  Create a 'values.yaml' file in order to override the default chart value
+    for the Helm release. Ensure the file is outside the root of the repo so
+    that it doesn't end up in the 'Flux' repo.
+
+echo "color: red" > ./values.yaml
+
+4.  Change directory into the root of the local copy of the 'Flux' repo.  
+
+cd gitops-lab-flux
+
+5.  Create the HelmRelease resource for the nginxhello app using the Flux CLI.
+
+flux create helmrelease nginxhello \
+  --source=HelmRepository/nginxhello \
+  --chart=nginxhello \
+  --values ../values.yaml \
+  --namespace default \
+  --export > ./helmreleases/nginxhello-hr.yaml
+
+6.  Inspect the HelmRelease manifest that has been created, and satisfy
+    yourself that it contains what you expect.
+
+cat ./helmreleases/nginxhello-hr.yaml
+
+7.  Create a kustomization file for the new 'helmreleases'directory.
+
+cd helmreleases
+kustomize create --autodetect
+cd ..
+
+8.  Send the changes to the remote origin on GitHub.
+
+git add -A
+git commit -m "Create HelmRelease resource for the nginxhello app"
+git push
+
+9.  After a suitable passage of time, check that the HelmRelease resource has
+    been fetched by Flux, and has been applied to the cluster. Also check to
+    see whether the helm controller has created a HelmChart object from the
+    definition of the HelmRelease.
+    
+kubectl get helmreleases.helm.toolkit.fluxcd.io nginxhello
+kubectl get helmcharts.source.toolkit.fluxcd.io default-nginxhello
+
+10. After the succcessful creation of these objects, has the helm controller
+    performed a Helm install? Check this out.
+
+helm list
+kubectl get all
+
+11. Use a web browser to navigate to the exposed nginxhello service (use
+    'kubectl port-forward' if necessary), and make sure the app has honored the
+    value override. The container should be rendered a red color.
+
+12. Finally, inspect the 'gitops-lab' channel on Discord to see whether a set
+    of new messages have been sent by the notification controller. These should
+    chronicle the Helm install of the application.

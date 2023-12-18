@@ -1,0 +1,117 @@
+This exercise assumes a working Kubernetes cluster, with Flux installed and
+configured according to the lab exercise in modules 3, 4, and previous
+exercises in this module 5.
+
+The kubectl (https://kubernetes.io/docs/tasks/tools/install-kubectl/) command
+line tool is required, as is an account on a git hosting provider, such as;
+GitHub, GitLab, Bitbucket Server, AWS CodeCommit, or Azure DevOps. The lab uses
+the Flux CLI, which can be installed according to the following instructions:
+https://fluxcd.io/docs/installation/#install-the-flux-cli. Installation
+instructions for the Kustomize utility can be found at the following location:
+https://kubectl.docs.kubernetes.io/installation/kustomize/. 
+
+The instructions in this lab exercise relate to GitHub as the git host
+provider, so if you're using a different git host provider, amend the commands
+to suit. Information concerning the 'yq' utility, can be found at the following
+URL: https://mikefarah.gitbook.io/yq/.
+
+Exercise: UPDATING AN APPLICATION VERSION WITH IMAGE AUTOMATION
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+1.  Change directory into the root of the 'Deployment' repo.
+
+cd gitops-lab-deploy
+
+2.  Add a marker to the image field in the Deployment manifest using a setter
+    comment. Use your favorite text editor, or the 'sed' command to make the
+    change.
+
+sed -i 's/.*- image:.*$/& # {"$imagepolicy": "default:nginxhello"}/' \
+  deploy/deployment.yaml
+
+3.  Stage and commit the changes, before pushing the changes to the remote
+    'gitops-lab-deploy' repo.
+
+git add -u
+git commit -m "Add marker to deployment mnaifest"
+git push
+
+4.  Give Flux enough time to fetch and apply the change, before checking in on
+    the cluster. Make sure the GitRepository resource called 'nginxhello' has
+    been updated, and has stored an artifact with the same commit hash as the
+    hash created by the 'git commit' command.
+
+kubectl get gitrepositories.source.toolkit.fluxcd.io nginxhello
+
+5.  Change directory into the root of the 'Flux' repo.
+
+cd ../gitops-lab-flux
+
+6.  Create a directory for storing ImageUpdateAutomation resources.
+
+mkdir ./imageautos
+
+7.  Inspect, and maybe alter, the supplied commit message template in the file
+    called 'msg_template'.
+
+cat ../msg_template
+
+8.  Create an ImageUpdateAutomation resource for the nginxhello application,
+    and export it to the file 'nginxhello-image-automation.yaml' in the new
+    'imageautos' directory.
+
+flux create image update nginxhello \
+  --git-repo-ref=nginxhello \
+  --git-repo-path=./deploy \
+  --checkout-branch=main \
+  --push-branch=main \
+  --author-name=flux \
+  --author-email=flux@users.noreply.github.com \
+  --commit-template="$(cat ../msg_template)" \
+  --export > ./imageautos/nginixhello-image-automation.yaml
+
+9.  Inspect the geenerated YAML resource and make sure that it refelcts what
+    you expect to see.
+
+cat imageautos/nginxhello-image-automation.yaml
+
+10. Create a kustomization file for the 'imageautos' directory.
+
+cd imageutos
+kustomize create --autodetect
+cd ..
+
+11. In a new terminal window, establish a watch on the app's pods running in
+    the cluster, either by using the 'watch' capability built into the kubectl
+    command (kubectl get po --watch), or by using the 'watch' utility.
+
+watch kubectl get po
+
+12. Back in the first terminal, stage and commit the changes before pushing
+    them to the remote 'gitops-lab-flux' repo.
+
+git add imageautos/
+git commit -m "Add ImageUpdateAutomation resource for nginxhello app"
+git push
+
+13. Allowing time for Flux to sync the changes made to the desred state, and
+    whilst monitoring the watched pods in the other terminal window, get the
+    ImageUpdateAutomation resource from the cluster. Check to see when the last
+    update was run by the image automation controller. Observe Kubernetes
+    performing a rolling update to the app.
+
+kubectl get imageupdateautomations.image.toolkit.fluxcd.io
+
+14. What is the version of the nginxhello app running in the cluster? Does it
+    reflect the tag selected by the applied image policy?
+
+kubectl get deployments.apps nginxhello -o yaml | \
+  yq '.spec.template.spec.containers[0].image'
+
+15. Fetch the git references from the remote 'Deployment' repo on GitHub (or
+    the git hosting environment you are using). Update the local branch, and
+    inspect the git log.
+
+git fetch
+git pull
+git log -1

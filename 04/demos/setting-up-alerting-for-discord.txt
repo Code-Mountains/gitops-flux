@@ -1,0 +1,94 @@
+This exercise assumes a working Kubernetes cluster, with Flux installed and
+configured according to the lab exercise in module 3.
+
+The kubectl (https://kubernetes.io/docs/tasks/tools/install-kubectl/) command
+line tool is required, as is an account on a git hosting provider, such as;
+GitHub, GitLab, Bitbucket Server, AWS CodeCommit, or Azure DevOps. In addition,
+the Kustomize utility should be installed in order to create Kustomization
+files (https://kubectl.docs.kubernetes.io/installation/kustomize/). The lab
+uses the Flux CLI, which can be installed according to the following
+instructions: https://fluxcd.io/docs/installation/#install-the-flux-cli.
+
+A Discord server is required to complete this exercise. A Basic Discord guide
+can be found at https://bit.ly/3wAn11R+.
+
+Exercise: SETTING UP ALERTING FOR DISCORD
++++++++++++++++++++++++++++++++++++++++++
+
+1.  Clone the 'gitops-lab-flux' repo, substituting your GitHub account
+    username. If an alternative git host provider is used, be sure to use the
+    relevant CLI instead.
+
+gh repo clone git@github.com:<username>/gitops-lab-flux.git
+
+2.  Change directory into root of repo and view its content, noting the config
+    that governs the Flux deployment.
+
+cd gitops-lab-flux
+ls -lR
+
+3.  On your Discord server, create a channel called 'gitops-lab'. Under
+    'Integrations', select 'Webhooks'. Either create a new webhook called
+    'FluxBot', or edit an existing webhook and rename it 'FluxBot'. Save the
+    changes, and copy the webhook URL. Paste the webhook URL into a file called
+    'discord-webhook-address' (outside the root of the repo). NB. Pasting the
+    webhook into a file may result in a newline being appended to the webhook
+    URL, which will cause notifications to fail. Use 'printf' or something
+    similar to remove the newline, e.g.
+
+printf %s "$(cat ../discord-webhook-address)" > ../discord-webhook-address
+
+4.  Create a webhook secret for Discord in the default namespace.
+
+kubectl create secret generic discord \
+  --from-file=address=../discord-webhook-address
+
+5.  Create directories in the local repo copy for notifications.
+
+mkdir -p notifications/{providers,alerts}
+
+6.  Create a notification controller provider resource for Discord.
+
+flux create alert-provider discord \
+  --type=discord \
+  --secret-ref=dscord \
+  --channel=gitops-lab \
+  --username=FluxBot \
+  --namespace=default \
+  --export > notifications/providers/discord-provider.yaml
+
+cat notifications/providers/discord-provider.yaml
+
+7.  Create a notification controller alert resource for Discord.
+
+flux create alert discord-bot-alert \
+  --event-severity=info \
+  --event-source=GitRepository/*,Kustomization/* \
+  --provider-ref=discord \
+  --namespace=default \
+  --export > notifications/alerts/discord-bot-alert.yaml
+
+cat notifications/alerts/discord-bot-alert.yaml
+
+8.  Create kustomization file for the notifications sub-directory.
+
+cd notifications
+kustomization create --autodetect --recursive
+cat kustomization.yaml
+
+9.  Return to the directory root, and review the repo changes.
+
+cd ..
+ls -lR
+
+10. Stage and commit changes, before pushing them to the remote repo on GitHub.
+
+git add notifications
+git commit -m "Create custom resources for discord alerting"
+git push
+
+11. Check that Flux fetches the new configuration, and applies it to the
+    default namespace in the cluster.
+
+kubectl get providers
+kubectl get alerts

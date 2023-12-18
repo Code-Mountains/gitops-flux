@@ -1,0 +1,22 @@
+This preparation task is required in order to establish a personal Helm
+repository on the GitHub Container Registry, for the exercises in this module.
+The exercises assume an account on GitHub, and that the Helm CLI has been
+installed locally (https://helm.sh/docs/intro/install/).
+
+Exercise: PREPARING A HELM REPOSITORY
++++++++++++++++++++++++++++++++++++++
+
+1.  Create a personal access token to allow you to work with packages. More
+    information can be found here: https://bit.ly/3AYnvko. 
+
+2.  Copy the token and store it in a local file.
+
+3.  Log in to the GitHub Container Registry using the Helm CLI
+
+echo "$(cat ~/path/to/ghcr/token)" | \
+  helm registry login -u <username> --password-stdin https://ghcr.io
+
+4.  Push the two provided chart versions to the GitHub Container Registry
+
+helm push ./nginxhello-1.0.0.tgz oci://ghcr.io/<username>/charts
+helm push ./nginxhello-1.0.1.tgz oci://ghcr.io/<username>/charts

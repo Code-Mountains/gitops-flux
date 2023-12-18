@@ -1,0 +1,76 @@
+This exercise assumes a working Kubernetes cluster, with Flux installed and
+configured according to the lab exercise in modules 3, 4, and 5.
+
+The kubectl (https://kubernetes.io/docs/tasks/tools/install-kubectl/) command
+line tool is required, as is an account on a git hosting provider, such as;
+GitHub, GitLab, Bitbucket Server, AWS CodeCommit, or Azure DevOps. In addition,
+the Kustomize utility should be installed in order to create Kustomization
+files (https://kubectl.docs.kubernetes.io/installation/kustomize/).The lab
+uses the Flux CLI, which can be installed according to the following
+instructions: https://fluxcd.io/docs/installation/#install-the-flux-cli. Also
+install the Helm CLI for executing Helm commands to verify the actions of the
+helm controller (https://helm.sh/docs/intro/install/).
+
+The instructions in this lab exercise relate to GitHub as the git host
+provider, so if you're using a different git host provider, amend the commands
+to suit.
+
+!!! Perform the preparation task before proceeding with the exercise !!!
+
+Exercise: CONFIGURING A HELM REPOSITORY SOURCE
+++++++++++++++++++++++++++++++++++++++++++++++
+
+1.  Remove the image automation configuration from the 'Flux' repo, along with
+    the kustomization directory. Ensure this revised state is reflected on the
+    remote repo on GitHub. The net result should be the pruning of the
+    nginxhello app from the cluster. Check this is so.
+
+kubectl get all
+
+2.  Amend the Discord bot alert to include HelmRepository resources as event
+    sources (notifications/alerts/discord-bot-alert.yaml). Send this change to
+    the remote origin on GitHub too.
+
+3.  Check the availability of the nginxhello Helm chart in the Helm repository
+    that you created as part of the 'Preparation' task.  
+
+Helm show chart oci://ghcr.io/<username>/charts/nginxhello
+
+4.  Create a Kubernetes secret of type 'docker-registry' in order to allow the
+    helm controller to have access to the Helm repository.
+
+kubectl create secret docker-registry ghcr-charts-auth \
+  --docker-server=ghcr.io \
+  --docker-username=<username> \
+  --docker-password="$(cat ~/path/to/ghcr/token)"
+
+5.  Create a HelmRepository resource for the Helm repo, using the Flux CLI.
+    Maybe overwrite the GitRepository source you created in a previous
+    exercise.
+
+flux create source helm nginxhello \
+  --url=oci://ghcr.io/<username>/charts \
+  --secret-ref=ghcr-charts-auth \
+  --namespace=default \
+  --export > ./sources/nginxhello-source.yaml
+
+6.  Inspect the HelmRepository manifest that has been created, and satisfy
+    yourself that it contains what you expect.
+
+cat ./sources/nginxhello-source.yaml
+
+7.  Send the changes to the remote origin on GitHub.
+
+git add -u
+git commit -m "Create HelmRepository source for chart stored in GHCR"
+git push
+
+8.  After a suitable passage of time, check that the HelmRepository resource
+    has been fetched by Flux, and has been applied to the cluster. Make sure it
+    is 'ready'.
+    
+kubectl get helmrepositories.source.toolkit.fluxcd.io nginxhello
+
+9.  Finally, inspect the 'gitops-lab' channel on Discord to see whether a new
+    message has been sent by the notification controller, after the successful
+    initialization of the HelmRepository resource.

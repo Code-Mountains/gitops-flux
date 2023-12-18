@@ -1,0 +1,60 @@
+This exercise assumes a working Kubernetes cluster, with Flux installed and
+configured according to the lab exercise in modules 3, 4, and previous
+exercises in this module 5.
+
+The kubectl (https://kubernetes.io/docs/tasks/tools/install-kubectl/) command
+line tool is required, as is an account on a git hosting provider, such as;
+GitHub, GitLab, Bitbucket Server, AWS CodeCommit, or Azure DevOps. In addition,
+the Kustomize utility should be installed in order to create Kustomization
+files (https://kubectl.docs.kubernetes.io/installation/kustomize/).The lab
+uses the Flux CLI, which can be installed according to the following
+instructions: https://fluxcd.io/docs/installation/#install-the-flux-cli.
+
+The instructions in this lab exercise relate to GitHub as the git host
+provider, so if you're using a different git host provider, amend the commands
+to suit. Information concerning the 'yq' utility, can be found at the following
+URL: https://mikefarah.gitbook.io/yq/.
+
+Exercise: CONFIGURING FLUX TO SCAN A CONTAINER IMAGE REPOSITORY
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+1.  Create a directory in the 'Flux' repo for storing ImageRepository
+    resources.
+
+cd gitops-lab-flux
+mkdir imagerepos
+
+2.  Create an ImageRepositpry resource for scanning the image tags associated
+    with the nginxhello app, and write it to a file in the 'imagerepos'
+    directory.
+
+flux create image repository nginxhello \
+  --image=docker.io/nbrown/nginxhello \
+  --interval=5m \
+  --namespace=default \
+  --export > imagerepos/nginxhello-image-repo.yaml
+
+3.  Inspect the generated YAML resource, and make sure it contains all that is
+    required.
+
+cat imagerepos/nginxhello-image-repo.yaml
+
+4.  Create a kustomization file for the 'imagerepos' directory.
+
+cd imagerepos
+kustomize create --autodetect
+cd ..
+
+5.  Stage and commit changes, before pushing the changes to the remote
+    'gitops-lab-flux' repo.
+
+git add imagerepos/
+git commit -m "Add ImageRepository resource to configuration"
+git push
+
+6.  Give Flux enough time to fetch and apply the ImageRepository resource,
+    check in on the cluster to make sure the resource has been created in the
+    default namespace. Observe the time of the last scan, and the number of
+    tags retrieved.
+
+kubectl get imagerepositories.image.toolkit.fluxcd.io

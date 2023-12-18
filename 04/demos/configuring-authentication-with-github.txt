@@ -1,0 +1,40 @@
+This exercise assumes a working Kubernetes cluster, with Flux installed and
+configured according to the lab exercise in module 3.
+
+The kubectl (https://kubernetes.io/docs/tasks/tools/install-kubectl/) command
+line tool is required, as is an account on a git hosting provider, such as;
+GitHub, GitLab, Bitbucket Server, AWS CodeCommit, or Azure DevOps. The lab uses
+the Flux CLI, which can be installed according to the following instructions:
+https://fluxcd.io/docs/installation/#install-the-flux-cli.
+
+The instructions in this lab exercise relate to GitHub as the git host
+provider, so if you're using a different git host provider, amend the commands
+to suit. Information concerning the 'yq' utility, can be found at the following
+URL: https://mikefarah.gitbook.io/yq/.
+
+Exercise: CONFIGURING AUTHENTICATION WITH GITHUB
+++++++++++++++++++++++++++++++++++++++++++++++++
+
+1.  Fork the repo that contains the Kubernetes manifests for the application,
+    https://github.com/nbrownuk/gitops-lab-deploy/fork.
+
+gh repo fork git@github.com:nbrownuk/gitops-lab-deploy.git
+
+2.  Using the Flux CLI, create an SSH secret for your forked deployment repo,
+    substituting your GitHub account name in the appropriate place.
+
+flux create secret git gitops-lab-deploy-auth \
+  --url=ssh://github.com/<username>/gitops-lab-deploy \
+  --namespace=default
+
+3.  Copy the public key, which is displayed as output from the command (deploy
+    key), and add it to the forked repo as a deploy key.
+
+4.  Inspect the secret that Flux has created.
+
+kubectl get secrets gitops-lab-deploy-auth -o yaml | yq '.data'
+
+5.  Clone a local copy of the repo (substituting your GitHub account name in
+    the appropriate place), which will be required in the next lab exercise.
+
+gh repo clone git@github.com:<username>/gitops-lab-deploy.git
